@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Retention Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --secondary-color: #f1f5f9;
+            --accent-color: #34a853;
+            --warning-color: #fbbc05;
+            --danger-color: #ea4335;
+            --text-color: #202124;
+            --light-text: #5f6368;
+            --border-color: #dadce0;
+            --card-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --sidebar-width: 240px;
+            --sidebar-collapsed-width: 64px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        body {
+            display: flex;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+
+        /* Reusing sidebar styles from original dashboard */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: white;
+            position: fixed;
+            left: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--light-text);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background-color: rgba(26, 115, 232, 0.1);
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .menu-item i {
+            margin-right: 15px;
+            font-size: 1.1rem;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* Header Styles */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        /* Stat Cards */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .stat-change {
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 20px;
+        }
+
+        .chart-wrapper {
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+
+        .theme-toggle input {
+            display: none;
+        }
+
+        .theme-toggle label {
+            width: 50px;
+            height: 24px;
+            background-color: #ddd;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .theme-toggle label::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            background-color: white;
+            transition: 0.3s;
+        }
+
+        .theme-toggle input:checked + label {
+            background-color: var(--primary-color);
+        }
+
+        .theme-toggle input:checked + label::before {
+            transform: translateX(26px);
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .sidebar,
+        body.dark-mode .stat-card,
+        body.dark-mode .chart-container {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .menu-item {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .menu-item:hover, 
+        body.dark-mode .menu-item.active {
+            background-color: rgba(66, 133, 244, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>RetentionAI</h2>
+        </div>
+        <div class="sidebar-menu">
+            <a href="dashboard" class="menu-item active">
+                <i class="fas fa-th-large"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="prediction" class="menu-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Prediction</span>
+            </a>
+            <a href="#employee-data" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>Employee Data</span>
+            </a>
+            <a href="#retention-strategies" class="menu-item">
+                <i class="fas fa-rocket"></i>
+                <span>Retention Strategies</span>
+            </a>
+            <a href="#contact" class="menu-item">
+                <i class="fas fa-envelope"></i>
+                <span>Contact</span>
+            </a>
+        </div>
+        <div class="theme-toggle" style="padding: 20px;">
+            <input type="checkbox" id="themeToggle">
+            <label for="themeToggle"></label>
+            <span style="margin-left: 10px;">Dark Mode</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Stats Section -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-title">Total Employees</div>
+                    <div class="stat-icon" style="background-color: var(--primary-color);">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="totalEmployees">250</div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>5% from last month</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-title">At-Risk Employees</div>
+                    <div class="stat-icon" style="background-color: var(--danger-color);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="atRiskEmployees">32</div>
+                <div class="stat-change negative">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Needs Immediate Action</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-title">Satisfaction Score</div>
+                    <div class="stat-icon" style="background-color: var(--accent-color);">
+                        <i class="fas fa-smile"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="satisfactionScore">7.5</div>
+                <div class="stat-change positive">
+                    <span>Out of 10</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-title">Attrition Rate</div>
+                    <div class="stat-icon" style="background-color: var(--warning-color);">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="attritionRate">15%</div>
+                <div class="stat-change">
+                    <span>Monthly Trend</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <div class="left-column">
+                <!-- Attrition Rate Chart -->
+                <div class="chart-container">
+                    <div class="section-header">
+                        <div class="section-title">Attrition Rate Trend</div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="attritionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Job Role Retention Chart -->
+                <div class="chart-container">
+                    <div class="section-header">
+                        <div class="section-title">Retention by Job Role</div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="retentionRoleChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <!-- Employee Satisfaction Chart -->
+                <div class="chart-container">
+                    <div class="section-header">
+                        <div class="section-title">Satisfaction Levels</div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="satisfactionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('change', () => {
+            document.body.classList.toggle('dark-mode');
+        });
+
+        // Charts using Chart.js
+        document.addEventListener('DOMContentLoaded', () => {
+            // Attrition Rate Line Chart
+            const attritionCtx = document.getElementById('attritionChart').getContext('2d');
+            new Chart(attritionCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Attrition Rate',
+                        data: [12, 15, 18, 16, 14, 15],
+                        borderColor: '#007BFF',
+                        backgroundColor: 'rgba(26, 115, 232, 0.2)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Job Role Retention Stacked Bar Chart
+            const retentionRoleCtx = document.getElementById('retentionRoleChart').getContext('2d');
+            new Chart(retentionRoleCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Engineering', 'Sales', 'Support', 'Marketing', 'HR'],
+                    datasets: [
+                        {
+                            label: 'Retained',
+                            data: [80, 70, 65, 75, 85],
+                            backgroundColor: '#4CAF50'
+                        },
+                        {
+                            label: 'Left',
+                            data: [20, 30, 35, 25, 15],
+                            backgroundColor: '#DC3545'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true }
+                    }
+                }
+            });
+
+            // Satisfaction Pie Chart
+            const satisfactionCtx = document.getElementById('satisfactionChart').getContext('2d');
+            const getCSSVariable = (variable) => getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+
+new Chart(satisfactionCtx, {
+    type: 'pie',
+    data: {
+        labels: ['Very Satisfied', 'Satisfied', 'Neutral', 'Dissatisfied'],
+        datasets: [{
+            data: [35, 40, 15, 10],
+            backgroundColor: [
+                getCSSVariable('--accent-color'),
+                getCSSVariable('--primary-color'),
+                getCSSVariable('--warning-color'),
+                getCSSVariable('--danger-color')
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+            });
+       
+    </script>
+</body>
+</html>

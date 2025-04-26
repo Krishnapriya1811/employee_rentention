@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Attrition Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body class="bg-light">
+    <div class="container mt-5">
+        <h2 class="mb-4">Attrition Risk Prediction</h2>
+        <form id="attritionForm" class="row g-3">
+            <div class="col-md-4"><label>Age</label><input type="number" name="age" class="form-control" required></div>
+            <div class="col-md-4">
+                <label>Gender</label>
+                <select name="gender" class="form-select" required>
+                    <option value="">Select</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label>Marital Status</label>
+                <select name="maritalStatus" class="form-select" required>
+                    <option value="">Select</option>
+                    <option>Single</option>
+                    <option>Married</option>
+                    <option>Divorced</option>
+                </select>
+            </div>
+            <div class="col-md-6"><label>Job Role</label><input type="text" name="jobRole" class="form-control"
+                    required></div>
+            <div class="col-md-6"><label>Income</label><input type="number" name="income" class="form-control" required>
+            </div>
+            <div class="col-md-4"><label>Years at Company</label><input type="number" name="yearsAtCompany"
+                    class="form-control" required></div>
+            <div class="col-md-4"><label>Years Since Promotion</label><input type="number" name="yearsSincePromotion"
+                    class="form-control" required></div>
+            <div class="col-md-4"><label>Job Satisfaction (1-5)</label><input type="number" name="jobSatisfaction"
+                    class="form-control" required></div>
+            <div class="col-md-6"><label>Performance Rating (1-5)</label><input type="number" name="performanceRating"
+                    class="form-control" required></div>
+            <div class="col-md-6"><label>Work Environment (1-5)</label><input type="number" name="workEnvironment"
+                    class="form-control" required></div>
+            <div class="col-md-4">
+                <label>Overtime</label>
+                <select name="overtime" class="form-select" required>
+                    <option value="">Select</option>
+                    <option>Yes</option>
+                    <option>No</option>
+                </select>
+            </div>
+            <div class="col-md-4"><label>Absenteeism (days/year)</label><input type="number" name="absenteeism"
+                    class="form-control" required></div>
+            <div class="col-md-4"><label>Distance from Home (km)</label><input type="number" name="distanceFromHome"
+                    class="form-control" required></div>
+            <div class="col-md-4"><label>Companies Worked</label><input type="number" name="companiesWorked"
+                    class="form-control" required></div>
+
+            <div class="col-12 mt-4">
+                <button type="submit" class="btn btn-primary">Predict</button>
+            </div>
+        </form>
+
+        <div id="loadingSpinner" class="text-center mt-4" style="display: none;">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+
+        <div id="result" class="mt-4" style="display: none;">
+            <h4>Prediction Result:</h4>
+            <p><strong>Risk:</strong> <span id="risk"></span></p>
+            <p><strong>Reason:</strong> <span id="reason"></span></p>
+            <p><strong>Recommendations:</strong></p>
+            <ul id="recommendations"></ul>
+        </div>
+    </div>
+
+    <script>
+        $('#attritionForm').on('submit', function (e) {
+            e.preventDefault();
+            const formData = $(this).serialize();
+
+            $('#result').hide();
+            $('#loadingSpinner').show();
+
+            $.get('/api/attrition-predict', formData, function (response) {
+                $('#loadingSpinner').hide();
+                $('#result').show();
+
+                if (response.status === "success") {
+                    $('#risk').text(response.risk);
+                    $('#reason').text(response.reason);
+                    $('#recommendations').empty();
+                    response.recommendations.forEach(function (item) {
+                        $('#recommendations').append(`<li>${item}</li>`);
+                    });
+                } else {
+                    alert("Error: " + response.message);
+                }
+            }).fail(function (error) {
+                $('#loadingSpinner').hide();
+                alert("Server Error: " + error.responseText);
+            });
+        });
+    </script>
+</body>
+
+</html>

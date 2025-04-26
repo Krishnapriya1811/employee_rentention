@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Employee Retention Prediction</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.7.1/chart.min.js"></script>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --text-color: #333;
+            --background-color: #f4f4f4;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            scroll-behavior: smooth;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 5%;
+            background-color: transparent;
+            transition: background-color 0.3s ease;
+            z-index: 1000;
+        }
+
+        .navbar.scrolled {
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-logo {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .navbar.scrolled .navbar-logo {
+            color: var(--primary-color);
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .navbar-links a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .navbar.scrolled .navbar-links a {
+            color: var(--text-color);
+        }
+
+        .navbar-links a:hover {
+            color: var(--primary-color);
+        }
+
+        /* Background Carousel Wrapper */
+#background-carousel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+}
+
+/* Gradient Overlay */
+#background-carousel::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), rgba(10, 10, 0, 0.5));
+    z-index: 1; /* Ensures gradient is on top */
+}
+
+/* Carousel Images */
+.carousel-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+    z-index: 0; /* Keeps images under the gradient */
+}
+
+.carousel-image.active {
+    opacity: 1;
+}
+
+        /* Overview Section */
+        #overview {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            padding: 0 5%;
+        }
+
+        #overview h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        #overview p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            max-width: 700px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        .cta-button:hover {
+            transform: scale(1.05);
+            background-color: #2980b9;
+        }
+
+        /* Sections Common Styles */
+        .section {
+            padding: 5rem 5%;
+            background-color: white;
+            opacity: 0;
+            transform: translateY(50px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .section.reveal {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Login/Signup Buttons */
+        .auth-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .auth-button {
+            padding: 12px 25px;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .auth-button:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* Demo Section */
+        .demo-steps {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+
+        .demo-card {
+            flex: 1;
+            background-color: #f9f9f9;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 10px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        /* Stats Section */
+        .stats-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        /* Footer */
+        footer {
+            background-color: #333;
+            color: white;
+            padding: 2rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            margin-right: 1rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary-color);
+        }
+
+        .social-icons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-icons a {
+            color: white;
+            font-size: 1.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .social-icons a:hover {
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="#" class="navbar-logo">RetentionAI</a>
+        <div class="navbar-links">
+            <a href="index.html">Home</a>
+            <a href="#features">Features</a>
+            <a href="#demo">Demo</a>
+            <a href="#insights">Insights</a>
+            <a href="#login">Login/Signup</a>
+        </div>
+    </nav>
+
+    <!-- Background Carousel -->
+    <div id="background-carousel">
+        <div class="carousel-image" style="background-image: url('https://i.postimg.cc/0j9BCcP5/employeepic.png')"></div>
+        <div class="carousel-image" style="background-image: url('https://i.postimg.cc/CxwbLXJx/employeepic2.png')"></div>
+        <div class="carousel-image" style="background-image: url('https://i.postimg.cc/8zCsYStM/handshake.png')"></div>
+    </div>
+
+    <!-- Overview Section -->
+    <section id="overview">
+        <h1>Predict & Prevent Employee Attrition using AI</h1>
+        <p>Leverage deep learning to retain top talent and minimize turnover</p>
+        <a href="dashboard" class="cta-button">Start Analysis</a>
+    </section>
+
+    <!-- Login/Signup Section -->
+    <section id="login" class="section">
+        <div class="auth-buttons">
+            <a href="#" class="auth-button login-btn">Login</a>
+            <a href="#" class="auth-button signup-btn">Signup</a>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="section">
+        <h2 class="section-title">How It Works</h2>
+        <div class="demo-steps">
+            <div class="demo-card">
+                <h3>Data Collection</h3>
+                <p>Gather comprehensive employee data securely</p>
+            </div>
+            <div class="demo-card">
+                <h3>AI Analysis</h3>
+                <p>Advanced machine learning predicts retention risks</p>
+            </div>
+            <div class="demo-card">
+                <h3>Strategic Insights</h3>
+                <p>Actionable recommendations to reduce turnover</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats & Insights Section -->
+    <section id="insights" class="section">
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-number" id="accuracy-stat">95</div>
+                <p>Accuracy in Predicting Attrition</p>
+            </div>
+            <div class="stat-card">
+                <canvas id="retention-chart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-links">
+            <a href="#">About</a>
+            <a href="#">Contact</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
+        </div>
+        <div class="social-icons">
+            <a href="#"><i class="fab fa-linkedin"></i></a>
+            <a href="#"><i class="fab fa-twitter"></i></a>
+            <a href="#"><i class="fab fa-github"></i></a>
+        </div>
+    </footer>
+
+    <script>
+        // Background Carousel
+        const carouselImages = document.querySelectorAll('.carousel-image');
+        let currentImageIndex = 0;
+
+        function changeBackgroundImage() {
+            carouselImages[currentImageIndex].classList.remove('active');
+            currentImageIndex = (currentImageIndex + 1) % carouselImages.length;
+            carouselImages[currentImageIndex].classList.add('active');
+        }
+
+        carouselImages[currentImageIndex].classList.add('active');
+        setInterval(changeBackgroundImage, 5000);
+
+        // Navbar Scroll Effect
+        const navbar = document.querySelector('.navbar');
+        window.addEventListener('scroll', () => {
+            navbar.classList.toggle('scrolled', window.scrollY > 50);
+        });
+
+        // Section Reveal on Scroll
+        const sections = document.querySelectorAll('.section');
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const sectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('reveal');
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach(section => {
+            sectionObserver.observe(section);
+        });
+
+        // Retention Chart
+        const ctx = document.getElementById('retention-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Employee Retention Rate',
+                    data: [95, 93, 91, 89, 87, 85],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Retention Trends'
+                    }
+                }
+            }
+        });
+
+        // Stat Number Animation
+        function animateStatNumber(element, target) {
+            let current = 0;
+            const increment = target / 100;
+            const updateNumber = () => {
+                current += increment;
+                element.textContent = Math.round(current);
+                if (current < target) {
+                    requestAnimationFrame(updateNumber);
+                } else {
+                    element.textContent = target;
+                }
+            };
+            updateNumber();
+        }
+
+        const accuracyStat = document.getElementById('accuracy-stat');
+        animateStatNumber(accuracyStat, 95);
+    </script>
+</body>
+</html>
