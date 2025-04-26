@@ -97,7 +97,7 @@ def predict_attrition():
         # Use DL model output in Gemini prompt
 
         prompt = f"""
-        Based on the following employee data, and an AI model prediction of attrition probability {attrition_probability:.2f}%, assess the attrition risk (Low, Medium, High) and provide:
+        Based on the following employee data and employee input data, assess the attrition risk (Low, Medium, High) and provide:
         - Risk level
         - Reason for the risk
         - Recommendations (only three to four words)
