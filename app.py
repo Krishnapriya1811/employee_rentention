@@ -8,10 +8,11 @@ import numpy as np
 app = Flask(__name__)
 CORS(app)
 
-# Gemini Pro API Key
+# Gemini API Configuration
 genai.configure(api_key="AIzaSyBTdIKljJQhZWauYMSZkaXxGxQdnXv2yBI")
 
-model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+# Using Gemini 2.5 Flash (latest stable model from June 2025)
+model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 # Load your deep learning model
 dl_model = load_model('employee_attrition_model (2).h5')
@@ -97,7 +98,7 @@ def predict_attrition():
         # Use DL model output in Gemini prompt
 
         prompt = f"""
-        Based on the following employee data and employee input data, assess the attrition risk (Low, Medium, High) and provide:
+        Based on the following employee data, and an AI model prediction of attrition probability {attrition_probability:.2f}%, assess the attrition risk (Low, Medium, High) and provide:
         - Risk level
         - Reason for the risk
         - Recommendations (only three to four words)
@@ -131,6 +132,12 @@ def predict_attrition():
 
         response = model.generate_content(prompt)
         output = response.text.strip()
+        
+        # Debug: print the raw output
+        print("=" * 50)
+        print("RAW GEMINI OUTPUT:")
+        print(output)
+        print("=" * 50)
 
         if "Employee will not leave" in output:
             return jsonify({
@@ -143,21 +150,34 @@ def predict_attrition():
         recommendations = []
         lines = output.splitlines()
 
+        # Parse the output
+        in_recommendations = False
         for i, line in enumerate(lines):
-            line_clean = line.replace("", "").strip()
+            line_clean = line.strip()
+            
+            # Remove any special characters or bullets
+            if line_clean.startswith("**"):
+                line_clean = line_clean.strip("*").strip()
+            
             if line_clean.lower().startswith("risk:"):
                 risk = line_clean.split(":", 1)[1].strip()
+                risk = risk.strip("*").strip()
             elif line_clean.lower().startswith("reason:"):
                 reason = line_clean.split(":", 1)[1].strip()
-            elif line_clean.lower().startswith("recommendations:"):
-                for j in range(i + 1, len(lines)):
-                    bullet = lines[j].strip()
-                    if bullet.startswith("-"):
-                        recommendations.append(bullet.strip("- ").replace("", "").strip())
-                    elif bullet == "":
-                        continue
-                    else:
-                        break
+                reason = reason.strip("*").strip()
+            elif line_clean.lower().startswith("recommendations"):
+                in_recommendations = True
+                continue
+            elif in_recommendations and line_clean:
+                # Extract recommendation items (handle different bullet formats)
+                if line_clean.startswith("-") or line_clean.startswith("*") or line_clean.startswith("•"):
+                    rec_text = line_clean.lstrip("-*•").strip()
+                    if rec_text:
+                        recommendations.append(rec_text)
+                elif line_clean and not line_clean.lower().startswith(("risk", "reason")):
+                    # Check if it's still a recommendation (not a new section)
+                    if any(char.isalpha() for char in line_clean):
+                        recommendations.append(line_clean)
 
         return jsonify({
             "status": "success",
