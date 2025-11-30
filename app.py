@@ -1,21 +1,101 @@
-from flask import Flask, request, jsonify,render_template
-from flask_cors import CORS
-import google.generativeai as genai
-from tensorflow.keras.models import load_model
-import numpy as np
+import logging
+import os
+from functools import lru_cache
 
+import numpy as np
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+from tensorflow.keras.layers import InputLayer as TFInputLayer
+from tensorflow.keras.models import load_model
+
+try:
+    import google.generativeai as genai
+except ImportError as exc:  # pragma: no cover - dependency issue should surface in logs
+    genai = None
+    logging.getLogger(__name__).warning("google-generativeai failed to import: %s", exc)
+
+
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
-# Gemini API Configuration
-genai.configure(api_key="AIzaSyBTdIKljJQhZWauYMSZkaXxGxQdnXv2yBI")
+MODEL_PATH = os.getenv("ATTRITION_MODEL_PATH", "employee_attrition_model (2).h5")
+GENAI_MODEL_NAME = os.getenv("GENAI_MODEL_NAME", "gemini-1.5-flash")
+GENAI_API_KEY = os.getenv("GENAI_API_KEY")
 
-# Using Gemini 2.5 Flash (latest stable model from June 2025)
-model = genai.GenerativeModel("models/gemini-2.5-flash")
 
-# Load your deep learning model
-dl_model = load_model('employee_attrition_model (2).h5')
+class PatchedInputLayer(TFInputLayer):
+    """Shim to support legacy models saved with `batch_shape`."""
+
+    def __init__(self, *args, **kwargs):
+        if "batch_shape" in kwargs and "batch_input_shape" not in kwargs:
+            kwargs["batch_input_shape"] = kwargs.pop("batch_shape")
+        super().__init__(*args, **kwargs)
+
+
+@lru_cache(maxsize=1)
+def get_dl_model():
+    try:
+        return load_model(MODEL_PATH, compile=False)
+    except TypeError as exc:
+        if "batch_shape" not in str(exc):
+            raise
+        LOGGER.warning("Falling back to legacy InputLayer patch while loading %s", MODEL_PATH)
+        return load_model(
+            MODEL_PATH,
+            compile=False,
+            custom_objects={"InputLayer": PatchedInputLayer},
+        )
+
+
+@lru_cache(maxsize=1)
+def get_genai_client():
+    if not genai:
+        return None
+    if not GENAI_API_KEY:
+        LOGGER.warning("GENAI_API_KEY is not set; Gemini features disabled")
+        return None
+    genai.configure(api_key=GENAI_API_KEY)
+    LOGGER.info("Initializing Gemini model %s", GENAI_MODEL_NAME)
+    return genai.GenerativeModel(
+        GENAI_MODEL_NAME,
+        generation_config={
+            "temperature": 0.4,
+            "top_p": 0.9,
+            "top_k": 40,
+            "max_output_tokens": 512,
+        },
+    )
+
+
+def call_gemini(prompt: str) -> str | None:
+    client = get_genai_client()
+    if client is None:
+        return None
+    try:
+        response = client.generate_content(prompt)
+    except Exception as exc:  # pragma: no cover - requires external API
+        LOGGER.error("Gemini request failed: %s", exc)
+        return None
+
+    text = getattr(response, "text", None)
+    if text:
+        return text.strip()
+
+    candidates = getattr(response, "candidates", None)
+    collected: list[str] = []
+    if candidates:
+        for candidate in candidates:
+            parts = getattr(getattr(candidate, "content", {}), "parts", [])
+            for part in parts:
+                part_text = getattr(part, "text", "")
+                if part_text:
+                    collected.append(part_text)
+
+    result = "\n".join(segment.strip() for segment in collected if segment.strip())
+    return result or None
 
 @app.route('/')
 def index():
@@ -34,6 +114,10 @@ def prediction():
 def predict_attrition():
     try:
         data = request.args
+
+        dl_model = get_dl_model()
+        if dl_model is None:
+            raise RuntimeError(f"Unable to load model from {MODEL_PATH}")
 
         # Fetch input data
         age = float(data.get('age'))
@@ -130,8 +214,16 @@ def predict_attrition():
         Number of Companies Worked: {companies_worked}
         """
 
-        response = model.generate_content(prompt)
-        output = response.text.strip()
+        output = call_gemini(prompt)
+        if not output:
+            LOGGER.warning("Gemini returned no content; falling back to DL-only response")
+            return jsonify({
+                "status": "success",
+                "attrition_probability": f"{attrition_probability:.2f}%",
+                "risk": "Unavailable",
+                "reason": "Gemini response missing",
+                "recommendations": ["Retry later", "Check API key"]
+            })
         
         # Debug: print the raw output
         print("=" * 50)
